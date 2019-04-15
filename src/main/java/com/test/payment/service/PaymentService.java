@@ -5,11 +5,8 @@ import com.test.payment.model.Payment;
 import com.test.payment.model.SubscriptionType;
 import org.springframework.stereotype.Component;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -32,7 +29,7 @@ public class PaymentService {
 
         formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
         sDate = LocalDate.parse(startDate, formatter);
-        eDate = LocalDate.parse(endDate, formatter);
+        eDate = least(LocalDate.parse(endDate, formatter), sDate.plusMonths(3));
 
         if(type.equalsIgnoreCase(DAILY.getText())) {
             for (LocalDate date = sDate; date.isBefore(eDate); date = date.plusDays(1)) {
@@ -43,20 +40,23 @@ public class PaymentService {
         }
         else if(type.equalsIgnoreCase(WEEKLY.getText())){
 
-            for (LocalDate date = sDate; date.isBefore(eDate); date = date.plusDays(7)) {
-                for (LocalDate skipdate = date; skipdate.isBefore(eDate) && !(skipdate.getDayOfWeek() == DayOfWeek.WEDNESDAY); skipdate = skipdate.plusDays(1)) {
-                    date = skipdate;
-                }
+            LocalDate skipdate = sDate;
+            for (; skipdate.isBefore(eDate) && !(skipdate.getDayOfWeek() == DayOfWeek.TUESDAY); skipdate = skipdate.plusDays(1)) {
+
+            }
+            for (LocalDate date = skipdate; date.isBefore(eDate); date = date.plusDays(7)) {
                 invoiceDates.add(valueOf(date));
             }
             payment = new Payment(UUID.randomUUID().toString(), amountWithCurrency, WEEKLY, invoiceDates);
         }
         else if(type.equalsIgnoreCase(SubscriptionType.MONTHLY.getText())){
-            for (LocalDate date = sDate; date.isBefore(eDate); date = date.plusDays(30)) {
+            for (LocalDate date = sDate; date.isBefore(eDate); date = date.plusDays(28)) {
                 for (LocalDate skipdate = date; skipdate.isBefore(eDate) && !(skipdate.getDayOfMonth() == 21); skipdate = skipdate.plusDays(1)) {
                     date = skipdate;
                 }
-                invoiceDates.add(valueOf(date));
+                if(date.getDayOfMonth() == 20){
+                    invoiceDates.add(valueOf(date));
+                }
             }
             payment = new Payment(UUID.randomUUID().toString(), amountWithCurrency, MONTHLY, invoiceDates);
         }
@@ -68,4 +68,9 @@ public class PaymentService {
         return payment;
 
     }
+
+    private static LocalDate least(LocalDate a, LocalDate b) {
+        return a == null ? b : (b == null ? a : (a.isBefore(b) ? a : b));
+    }
+
 }
